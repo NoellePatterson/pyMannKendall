@@ -158,22 +158,25 @@ def __sens_estimator(x):
     return d
 
 
-def sens_slope(x):
+def sens_slope_intercept(x):
     """
     This method proposed by Theil (1950) and Sen (1968) to estimate the magnitude of the monotonic trend.
     Input:
         x:   a one dimensional vector (list, numpy array or pandas series) data
     Output:
         slope: sen's slope
+        intercept: intercept of Kendall-Theill robust line, calculated as median(y) - medslope*median(x)
     Examples
     --------
       >>> x = np.random.rand(120)
-      >>> slope = sens_slope(x)
+      >>> slope, intercept = sens_slope_intercept(x)
     """
     x, c = __preprocessing(x)
     x, n = __missing_values_analysis(x, method = 'skip')
+    s_slope = np.median(__sens_estimator(x))
+    intercept = np.median(x) - np.median(np.arange(len(x)))*s_slope
     
-    return np.median(__sens_estimator(x))
+    return s_slope, intercept
 
 
 def seasonal_sens_slope(x, period=12):
@@ -226,9 +229,9 @@ def original_test(x, alpha = 0.05):
     --------
 	  >>> import pymannkendall as mk
       >>> x = np.random.rand(1000)
-      >>> trend,h,p,z,tau,s,var_s,slope = mk.original_test(x,0.05)
+      >>> trend,h,p,z,tau,s,var_s,slope,intercept = mk.original_test(x,0.05)
     """
-    res = namedtuple('Mann_Kendall_Test', ['trend', 'h', 'p', 'z', 'Tau', 's', 'var_s', 'slope'])
+    res = namedtuple('Mann_Kendall_Test', ['trend', 'h', 'p', 'z', 'Tau', 's', 'var_s', 'slope', 'intercept'])
     x, c = __preprocessing(x)
     x, n = __missing_values_analysis(x, method = 'skip')
     
@@ -238,9 +241,9 @@ def original_test(x, alpha = 0.05):
     
     z = __z_score(s, var_s)
     p, h, trend = __p_value(z, alpha)
-    slope = sens_slope(x)
+    slope, intercept = sens_slope_intercept(x)
 
-    return res(trend, h, p, z, Tau, s, var_s, slope)
+    return res(trend, h, p, z, Tau, s, var_s, slope, intercept)
 
 def hamed_rao_modification_test(x, alpha = 0.05, lag=None):
     """
@@ -280,7 +283,7 @@ def hamed_rao_modification_test(x, alpha = 0.05, lag=None):
         
     # detrending
     # x_detrend = x - np.multiply(range(1,n+1), np.median(x))
-    slope = sens_slope(x)
+    slope, intercept = sens_slope_intercept(x)
     x_detrend = x - np.arange(1,n+1) * slope
     I = rankdata(x_detrend)
     
@@ -341,7 +344,7 @@ def yue_wang_modification_test(x, alpha = 0.05, lag=None):
         lag = lag + 1
 
     # detrending
-    slope = sens_slope(x)
+    slope, intercept = sens_slope_intercept(x)
     x_detrend = x - np.arange(1,n+1) * slope
     
     # account for autocorrelation
@@ -395,7 +398,7 @@ def pre_whitening_modification_test(x, alpha = 0.05):
     
     z = __z_score(s, var_s)
     p, h, trend = __p_value(z, alpha)
-    slope = sens_slope(x)
+    slope, intercept = sens_slope_intercept(x)
     
     return res(trend, h, p, z, Tau, s, var_s, slope)
 
@@ -425,7 +428,7 @@ def trend_free_pre_whitening_modification_test(x, alpha = 0.05):
     x, n = __missing_values_analysis(x, method = 'skip')
     
     # detrending
-    slope = sens_slope(x)
+    slope, intercept = sens_slope_intercept(x)
     x_detrend = x - np.arange(1,n+1) * slope
     
     # PreWhitening
@@ -443,7 +446,7 @@ def trend_free_pre_whitening_modification_test(x, alpha = 0.05):
     
     z = __z_score(s, var_s)
     p, h, trend = __p_value(z, alpha)
-    slope = sens_slope(x)
+    slope, intercept = sens_slope_intercept(x)
     
     return res(trend, h, p, z, Tau, s, var_s, slope)
 
@@ -711,6 +714,6 @@ def partial_test(x, alpha = 0.05):
     z = s / np.sqrt(var_s)
 
     p, h, trend = __p_value(z, alpha)
-    slope = sens_slope(x)
+    slope, intercept = sens_slope_intercept(x)
 
     return res(trend, h, p, z, Tau, s, var_s, slope)
